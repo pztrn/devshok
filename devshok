@@ -1,0 +1,11 @@
+#!/bin/bash
+
+OS=$(uname -s)
+if [ "${OS}" == "Darwin" ]; then
+    echo "Use devshok-osx wrapper!"
+    exit 3
+fi
+
+export READLINK="/bin/readlink"
+
+./main $@

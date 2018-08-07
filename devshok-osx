@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# OSX wrapper.
+# It will launch with Bash 4+ which is required.
+
+OS=$(uname -s)
+if [ "${OS}" != "Darwin" ]; then
+    echo "This wrapper is suitable only for macOS. Use devshok instead."
+    exit 4
+fi
+
+if [ ! -f "/usr/local/bin/bash" ]; then
+    echo -n "Bash from Brew is required. Would you like to install Bash now?"
+    read ans
+    if [ "${ans}" == "n" -o "${ans}" == "N" ]; then
+        echo "Do nothing then. Install Bash from Brew manually. See http://brew.sh for more information."
+        exit 14
+    fi
+
+    check_and_install_brew
+    /usr/local/bin/brew install bash
+fi
+
+export READLINK="/usr/local/bin/greadlink"
+if [ ! -f "${READLINK}" ]; then
+    check_and_install_brew
+
+    echo -n "GNU readlink (from coreutils package) is required for macOS. Would you like to install it now?"
+    read ans
+    if [ "${ans}" == "n" -o "${ans}" == "N" ]; then
+        echo "Do nothing then. Install coreutils from Brew manually. See http://brew.sh for more information."
+        exit 14
+    fi
+    
+    exit 1
+fi
+
+function check_and_install_brew() {
+    if [ ! -f "/usr/local/bin/brew" ]; then
+        echo -n "Brew package manager seems to be not installed. Would you like to install now? "
+        read ans
+        if [ "${ans}" == "n" -o "${ans}" == "N" ]; then
+            echo "Do nothing then. Install Brew manually. See http://brew.sh for more information."
+            exit 14
+        fi
+
+        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    fi
+}
+
+/usr/local/bin/bash ./main $@

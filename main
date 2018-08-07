@@ -1,0 +1,81 @@
+SCRIPT_PATH=$(dirname "`${READLINK} -f "${BASH_SOURCE}"`")
+OS=$(uname -s)
+
+# Load libraries.
+source "${SCRIPT_PATH}/lib/logger.lib.sh"
+source "${SCRIPT_PATH}/lib/common.lib.sh"
+source "${SCRIPT_PATH}/lib/binaries.lib.sh"
+source "${SCRIPT_PATH}/lib/parameters_parser.lib.sh"
+
+# DevHelper is under git, so we should gather git data.
+GIT_COMMITHASH=$(git rev-parse HEAD)
+GIT_COMMITDATE=$(git log -1 --format=%cd)
+
+logger_log 0 "Starting DevSHOK (commit: ${GIT_COMMITHASH} from ${GIT_COMMITDATE})..."
+logger_log 2 "DevSHOK path: ${SCRIPT_PATH}"
+
+function go_with() {
+    local app=$1
+    shift
+    local app_opts=$@
+
+    paramparser_parse ${app_opts}
+
+    if [ "${#app}" == "0" ]; then
+        show_help
+        exit
+    fi
+
+    binaries_check_presence
+
+    logger_log 0 "Trying to launch command '${app}' with options '${app_opts}'..."
+
+    # Try to load requested command.
+    common_load "${SCRIPT_PATH}/apps/${app}.app.sh"
+    declare -F app_main &>/dev/null
+    if [ $? -ne 0 ]; then
+        logger_error 0 "Application '${app}' does not have 'app_main' function!"
+        exit 5
+    fi
+    app_main ${app_opts[@]}
+}
+
+function show_help() {
+    logger_log 2 "Showing help..."
+    echo "DevSHOK is a very powerful script designed to be used by"
+    echo "developers who uses Kubernetes in productions."
+    echo ""
+    echo "Available commands:"
+
+    # Get all commands and descriptions.
+    HELP_CMDS=()
+    HELP_DESCS=()
+    for app in $(ls "${SCRIPT_PATH}/apps"); do
+        common_load "${SCRIPT_PATH}/apps/${app}"
+        HELP_CMDS+=(${APP_COMMAND})
+        HELP_DESCS+=("${APP_DESCRIPTION}")
+    done
+
+    local idx=0
+    for cmd in ${HELP_CMDS[@]}; do
+        echo -e "\t\033[1;32m${cmd}\033[1;m\t${HELP_DESCS[idx]}"
+        idx=$idx+1
+    done
+
+    echo ""
+    echo "Every command might have own help, try to check 'CMD help'."
+    echo ""
+    echo "Generic switches that might change app's behaviour:"
+    echo -e "\t--install-tools [bool]      Install required tools (minikube, kubectl"
+    echo "                                    for all OSes and additionally VirtualBox on"
+    echo "                                    macOS)."
+}
+
+case $1 in
+    help)
+        show_help
+    ;;
+    *)
+        go_with $@
+    ;;
+esac
